@@ -1,0 +1,68 @@
+name: Django and React CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:13
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Install dependencies
+        run: |
+          python -m venv weather_env
+          source weather_env/bin/activate
+          pip install -r requirements.txt
+
+      - name: Run Django Migrations
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/test_db
+        run: python manage.py migrate
+
+      - name: Run Django Tests
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/test_db
+        run: python manage.py test
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build React App
+        run: |
+          cd frontend
+          npm run build
